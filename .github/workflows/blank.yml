@@ -28,18 +28,54 @@ jobs:
       - name: Encontrar projeto Android
         run: |
           PROJECT_DIR=$(find projeto -name settings.gradle.kts -o -name settings.gradle | head -n 1 | xargs dirname)
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Corrigir Java e Kotlin para 17
+        run: |
+          cd "$PROJECT_DIR"
+          python3 - <<'PY'
+          p = "app/build.gradle.kts"
+          s = open(p).read()
+
+          if "compileOptions" not in s:
+              s = s.replace(
+                  "android {",
+                  """android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              """
+              )
+
+          if "jvmTarget = \"17\"" not in s:
+              s = s.replace(
+                  "android {",
+                  """android {
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+              """
+              )
+
+          s = s.replace(
+              "sourceCompatibility JavaVersion.VERSION_17",
+              "sourceCompatibility = JavaVersion.VERSION_17"
+          )
+
+          s = s.replace(
+              "targetCompatibility JavaVersion.VERSION_17",
+              "targetCompatibility = JavaVersion.VERSION_17"
+          )
+
+          open(p, "w").write(s)
+          PY
 
       - name: Instalar Gradle
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
           unzip -q gradle-8.9-bin.zip
-          echo "$PWD/gradle-8.9/bin" >> $GITHUB_PATH
-
-      - name: Corrigir Java/Kotlin para 17
-        run: |
-          cd "$PROJECT_DIR"
-          sed -i '/android {/a\    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = "17"\n    }' app/build.gradle.kts
+          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
       - name: Compilar APK
         run: |
